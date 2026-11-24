@@ -1,69 +1,280 @@
 \documentclass[11pt,a4paper]{article}
+
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[french]{babel}
 \usepackage{lmodern}
-\usepackage[margin=2.3cm]{geometry}
-\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{amsmath,amssymb,amsthm}
 \usepackage{booktabs}
-\usepackage{amsmath}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
 \usepackage{hyperref}
-\graphicspath{{../figures/}}
 
-\title{Loi d'Okun aux États-Unis : le PIB réel explique-t-il la variation du chômage ?}
-\author{Fatima Zahra HAJJI \\ Sujet F16 · Machine Learning appliqué à la finance (S7 FIN et CI)}
-\date{22 novembre 2026}
+\geometry{
+    top=2.2cm,
+    bottom=2.2cm,
+    left=2.3cm,
+    right=2.3cm
+}
+
+\setstretch{1.15}
+
+\definecolor{navy}{RGB}{24, 52, 94}
+\definecolor{slate}{RGB}{71, 85, 105}
+\definecolor{accent}{RGB}{15, 118, 110}
+\definecolor{lightgray}{RGB}{248, 250, 252}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=navy,
+    urlcolor=accent,
+    citecolor=navy
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{slate}{Fiche F16 — La Loi d'Okun}}
+\fancyhead[R]{\small\textcolor{slate}{Macroéconomie approfondie}}
+\fancyfoot[C]{\small\textcolor{slate}{\thepage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\titleformat{\section}
+    {\Large\bfseries\color{navy}}
+    {\thesection.}{0.7em}{}
+    [\vspace{2pt}\color{accent}\titlerule]
+
+\titleformat{\subsection}
+    {\large\bfseries\color{navy}}
+    {\thesubsection}{0.6em}{}
+
+\titleformat{\subsubsection}
+    {\normalsize\bfseries\color{slate}}
+    {\thesubsubsection}{0.5em}{}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 
 \begin{document}
-\maketitle
 
-\section{Problématique et objectif}
-Dans quelle mesure la croissance du PIB réel permet-elle d'expliquer la variation du taux de chômage aux États-Unis ? On estime le modèle
-\[
-\Delta U_t = \alpha + \beta\, g_t + \varepsilon_t ,
-\]
-où $g_t$ est la croissance trimestrielle du PIB réel (en \%) et $\Delta U_t$ la variation trimestrielle du chômage (en points). Le coefficient d'Okun $\beta$ est attendu négatif. Critère de réussite fixé avant les résultats : battre la référence naïve (moyenne d'entraînement) en RMSE sur un test chronologique.
+\begin{titlepage}
+    \centering
+    \vspace*{1.5cm}
+    {\large\bfseries\color{accent} FICHE ANALYTIQUE F16 — MACROÉCONOMIE}\\[0.5cm]
+    \rule{\linewidth}{1.2pt}\\[0.8cm]
+    {\Huge\bfseries\color{navy} La Loi d'Okun}\\[0.4cm]
+    {\Large\color{slate} Fondements théoriques, modélisation économétrique, asymétries conjoncturelles et portée pour la politique économique}\\[1.2cm]
+    \rule{\linewidth}{0.6pt}\\[1.5cm]
 
-\section{Données}
-Deux séries FRED : GDPC1 (PIB réel, BEA, trimestriel) et UNRATE (taux de chômage, BLS, mensuel, ramené au trimestre par la moyenne de trois mois). La procédure de téléchargement est décrite dans \texttt{data/raw/README.md}.
+    \begin{minipage}{0.85\textwidth}
+        \small\color{slate}
+        \textbf{Objet du document :} Analyse exhaustive de la relation empirique et théorique entre les fluctuations du produit intérieur brut (PIB) et les variations du taux de chômage. Ce rapport développe la formulation initiale d'Arthur Okun (1962), les spécifications en différences premières et en écart de production, les canaux microéconomiques expliquant l'écart entre croissance du PIB et variation de l'emploi, l'instabilité temporelle du coefficient d'Okun ainsi que les limites et implications de politique macroéconomique.
+    \end{minipage}
 
-\section{Méthode}
-Régression linéaire simple estimée par moindres carrés, intégrée à un \texttt{Pipeline} scikit-learn (imputation par la médiane, ajustée sur l'entraînement seul). Découpage chronologique : entraînement jusqu'à 2009~T4 (247 trimestres), validation 2010--2016 (28), test à partir de 2017~T1 (38), utilisé une seule fois après réajustement sur entraînement et validation. Graine : 42.
+    \vfill
+    {\normalsize\color{navy}\textbf{Rapport explicatif détaillé — Version intégrale}}\\[0.3cm]
+    {\small\color{slate} Usage académique et analytique}
+\end{titlepage}
 
-\begin{figure}[h]
+\tableofcontents
+\newpage
+
+\section{Introduction et genèse de la loi d'Okun}
+
+En macroéconomie appliquée, la compréhension de la dynamique conjointe de la production agrégée et du marché du travail constitue un pilier essentiel du diagnostic conjoncturel et de la conduite des politiques de stabilisation. Formulée en 1962 par l'économiste américain Arthur M. Okun dans un article fondateur intitulé \textit{Potential GNP: Its Measurement and Significance}, la \textbf{loi d'Okun} établit une relation empirique négative et régulière entre la croissance économique effective (ou l'écart de production) et la variation du taux de chômage.
+
+Avant les travaux d'Okun, les décideurs publics et les économistes disposaient d'une intuition qualitative selon laquelle une expansion économique soutenue favorise la création d'emplois et réduit le chômage, tandis qu'une récession s'accompagne d'une hausse du chômage. Toutefois, il manquait un étalon quantitatif permettant d'évaluer l'ampleur de la perte de production associée à un niveau de chômage supérieur au plein-emploi, ou inversement, le rythme de croissance nécessaire pour faire reculer le chômage d'un point de pourcentage.
+
+Dans le contexte américain du début des années 1960, l'administration Kennedy cherchait à quantifier le « manque à gagner » de production lié à un chômage jugé trop élevé et à calibrer une politique budgétaire expansionniste (notamment la baisse de l'impôt sur le revenu de 1964). Okun a montré que la relation entre le chômage et le produit national brut (PNB) n'était pas une relation un-pour-un : une variation du taux de chômage s'accompagnait d'une variation beaucoup plus forte du PNB réel. Sur les données trimestrielles américaines de l'après-Seconde Guerre mondiale (1947--1960), il a mis en évidence qu'un point de pourcentage supplémentaire de chômage au-dessus d'un seuil de référence correspondait approximativement à un écart négatif de production d'environ $3\,\%$ (bien que les estimations ultérieures aient nuancé cette pente autour de $1,5$ à $2,5$ selon les pays et les périodes).
+
+\begin{quote}
+\textbf{Idée centrale :} La loi d'Okun n'est pas une loi structurelle immuable issue d'une fonction de production unique, mais une \textit{régularité empirique macroéconomique} qui synthétise l'interaction entre l'utilisation des facteurs de production, la productivité du travail, la durée du travail, le taux d'activité et l'ajustement de l'emploi.
+\end{quote}
+
+\section{Formulations mathématiques et spécifications économétriques}
+
+Dans la littérature économique, la loi d'Okun est généralement présentée sous trois formes principales : la version en \textbf{écart de production} (\textit{gap version}), la version en \textbf{différences premières} (\textit{first-difference version}) et une \textbf{version dynamique} intégrant des termes retardés afin de capturer les délais d'ajustement du marché du travail.
+
+\subsection{La version en écart de production (ou en niveau)}
+
+La formulation originelle d'Okun relie l'écart entre le taux de chômage effectif ($u_t$) et le taux de chômage naturel ou de plein-emploi ($u_t^*$) à l'écart de production (\textit{output gap}), défini comme l'écart relatif entre le PIB réel effectif ($Y_t$) et le PIB potentiel ($Y_t^*$):
+
+\begin{equation}
+u_t - u_t^* = -\beta \left( \frac{Y_t - Y_t^*}{Y_t^*} \right) + \varepsilon_t \approx -\beta \left( \ln Y_t - \ln Y_t^* \right) + \varepsilon_t
+\end{equation}
+
+où :
+\begin{itemize}[leftmargin=1.5em]
+    \item $u_t$ désigne le taux de chômage observé à la date $t$ ;
+    \item $u_t^*$ représente le taux de chômage d'équilibre / naturel (souvent rapproché du NAIRU dans les analyses contemporaines) ;
+    \item $Y_t$ est le PIB réel observé et $Y_t^*$ le PIB potentiel (niveau de production soutenable sans tensions inflationnistes durables) ;
+    \item $\beta > 0$ est le \textbf{coefficient d'Okun}, mesurant la sensibilité du déséquilibre sur le marché du travail à l'écart de production ;
+    \item $\varepsilon_t$ est un terme d'erreur aléatoire de moyenne nulle.
+\end{itemize}
+
+En réarrangeant l'équation pour exprimer l'écart de production en fonction de l'écart de chômage, on obtient :
+
+\begin{equation}
+\frac{Y_t - Y_t^*}{Y_t^*} = -\frac{1}{\beta}(u_t - u_t^*) + \tilde{\varepsilon}_t = -\kappa (u_t - u_t^*) + \tilde{\varepsilon}_t
+\end{equation}
+
+où $\kappa = 1/\beta$ indique combien de points de pourcentage de PIB potentiel sont perdus lorsqu'un point de chômage supplémentaire apparaît au-dessus de $u_t^*$. La principale difficulté pratique de cette spécification tient à l'inobservabilité directe de $Y_t^*$ et de $u_t^*$, qui doivent être estimés par des filtres statistiques (filtre de Hodrick-Prescott, filtre de Kalman, approches structurelles).
+
+\subsection{La version en différences premières}
+
+Pour éviter d'avoir à estimer au préalable les niveaux potentiels $Y_t^*$ et $u_t^*$, une formulation très fréquente relie directement la variation du taux de chômage ($\Delta u_t = u_t - u_{t-1}$) au taux de croissance du PIB réel ($g_{Y,t} = \Delta \ln Y_t \approx \frac{Y_t - Y_{t-1}}{Y_{t-1}}$):
+
+\begin{equation}
+\Delta u_t = \alpha - \gamma \, g_{Y,t} + \eta_t
+\end{equation}
+
+où :
+\begin{itemize}[leftmargin=1.5em]
+    \item $\gamma > 0$ mesure l'impact d'un point de croissance supplémentaire du PIB réel sur la variation du taux de chômage ;
+    \item $\alpha > 0$ reflète la hausse tendancielle du taux de chômage en l'absence de croissance économique (liée à la croissance de la population active potentielle et aux gains tendanciels de productivité du travail).
+\end{itemize}
+
+De cette équation découle immédiatement le \textbf{taux de croissance du PIB stabilisant le chômage} ($\Delta u_t = 0$ en espérance), noté $\bar{g}_Y$ :
+
+\begin{equation}
+\mathbb{E}[\Delta u_t] = 0 \iff \bar{g}_Y = \frac{\alpha}{\gamma}
+\end{equation}
+
+Si la croissance effective dépasse $\bar{g}_Y$ ($g_{Y,t} > \bar{g}_Y$), le taux de chômage tend à diminuer ; si elle lui est inférieure ($g_{Y,t} < \bar{g}_Y$), le taux de chômage tend à augmenter. Par exemple, si $\alpha = 0{,}6$ et $\gamma = 0{,}3$, la croissance du PIB doit atteindre $\bar{g}_Y = 2{,}0\,\%$ pour maintenir le taux de chômage constant.
+
+\subsection{Spécifications dynamiques et modèles ARDL}
+
+Dans la réalité, les entreprises n'ajustent pas instantanément leurs effectifs à la suite d'un choc de demande en raison des coûts d'embauche, de licenciement, de formation et de l'incertitude sur la persistance du choc. Les modèles dynamiques intègrent des retards échelonnés :
+
+\begin{equation}
+\Delta u_t = \alpha + \sum_{i=0}^{p} \gamma_i \, g_{Y,t-i} + \sum_{j=1}^{q} \rho_j \, \Delta u_{t-j} + \nu_t
+\end{equation}
+
+L'effet de long terme d'une hausse permanente de $1$ point de croissance du PIB sur la variation du chômage s'écrit alors :
+
+\begin{equation}
+\Gamma_{\text{LT}} = \frac{\sum_{i=0}^{p} \gamma_i}{1 - \sum_{j=1}^{q} \rho_j}
+\end{equation}
+
+Cette approche permet de distinguer l'impact contemporain (souvent modéré) de l'effet cumulé à moyen terme, plus marqué une fois que les ajustements d'embauche et de rétention de main-d'œuvre se sont diffusés.
+
+\section{Mécanismes économiques sous-jacents : pourquoi la relation n'est pas « un pour un »}
+
+L'une des questions les plus instructives de la loi d'Okun est d'expliquer pourquoi une variation de $1\,\%$ du PIB réel n'entraîne pas une variation symétrique de $-1$ point du taux de chômage. Par une décomposition comptable simple, la production agrégée peut s'écrire comme le produit de l'emploi total ($E_t$) et de la productivité moyenne par travailleur ($A_t = Y_t / E_t$) :
+
+\begin{equation}
+\Delta \ln Y_t = \Delta \ln E_t + \Delta \ln A_t
+\end{equation}
+
+Par ailleurs, l'emploi total est lié à la population active ($L_t$) et au taux de chômage ($u_t$, en proportion) via $E_t = (1 - u_t) L_t$. En première approximation :
+
+\begin{equation}
+\Delta \ln E_t \approx \Delta \ln L_t - \Delta u_t
+\end{equation}
+
+Enfin, la population active dépend de la population en âge de travailler ($P_t$) et du taux d'activité ($\text{LFPR}_t = L_t / P_t$), de sorte que $\Delta \ln L_t = \Delta \ln P_t + \Delta \ln \text{LFPR}_t$. En combinant ces relations, on obtient :
+
+\begin{equation}
+\Delta u_t \approx \left( \Delta \ln P_t + \Delta \ln \text{LFPR}_t + \Delta \ln A_t \right) - \Delta \ln Y_t
+\end{equation}
+
+Cette identité met en lumière quatre canaux majeurs qui expliquent la pente de la loi d'Okun :
+
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{La rétention de main-d'œuvre (\textit{labor hoarding}) et la productivité procyclique :} en phase de ralentissement ou de récession, les entreprises hésitent à licencier immédiatement des salariés formés et spécialisés (coûts de rupture, coûts de recrutement futur, maintien du moral). La productivité apparente du travail ralentit donc ou baisse temporairement, amortissant la hausse du chômage à court terme. À l'inverse, en début de reprise, les entreprises peuvent accroître la production en utilisant plus intensément les salariés déjà en poste avant d'embaucher massivement.
+    \item \textbf{L'ajustement de la durée du travail (heures travaillées par tête) :} face à une baisse de la demande, les employeurs réduisent souvent les heures supplémentaires, instaurent le chômage partiel ou raccourcissent la semaine de travail plutôt que de supprimer des postes. L'ajustement passe alors par la marge intensive du travail plutôt que par la marge extensive (le nombre d'emplois).
+    \item \textbf{La variabilité cyclique du taux d'activité (\textit{discouraged} et \textit{added worker effects}) :} lorsque la conjoncture se dégrade, certains chômeurs découragés cessent de rechercher activement un emploi et sortent de la population active (effet de découragement). Comme le taux de chômage est le rapport entre les chômeurs et la population active, un repli de la population active freine mécaniquement la hausse du taux de chômage. Inversement, lors d'une reprise, des personnes inactives reviennent sur le marché du travail, ce qui peut ralentir la baisse du taux de chômage malgré des créations d'emplois.
+    \item \textbf{La démographie et la croissance tendancielle de la population active :} même si la croissance du PIB est nulle, l'arrivée de nouvelles générations sur le marché du travail et les gains de productivité tendanciels tendent à accroître le chômage en l'absence de création d'emplois suffisante.
+\end{enumerate}
+
+\section{Estimations comparatives et instabilité du coefficient d'Okun}
+
+De nombreuses études empiriques (notamment celles du FMI, de l'OCDE et de banques centrales) montrent que le coefficient d'Okun varie sensiblement dans l'espace et dans le temps. Ces différences reflètent les caractéristiques institutionnelles des marchés du travail (protection de l'emploi, flexibilité contractuelle, coûts salariaux, recours au temps partiel), la structure sectorielle (poids des services, de l'industrie, de la construction) et la nature des chocs macroéconomiques.
+
+\begin{table}[htbp]
 \centering
-\includegraphics[width=\textwidth]{figB_protocole.png}
-\caption{Protocole d'évaluation.}
-\end{figure}
-
-\section{Résultats}
-\begin{table}[h]
-\centering
-\begin{tabular}{lcc}
+\caption{Ordres de grandeur comparatifs de la relation d'Okun selon les contextes}
+\label{tab:okun_comparatif}
+\begin{tabular}{L{3.4cm} C{2.6cm} C{3.4cm} L{4.5cm}}
 \toprule
- & Régression linéaire & Référence naïve \\
+\textbf{Contexte / Pays} & \textbf{Sensibilité typique ($\gamma$)} & \textbf{Croissance stabilisatrice ($\bar{g}_Y$)} & \textbf{Facteurs explicatifs dominants} \\
 \midrule
-RMSE, test complet & 1,224 & 1,688 \\
-RMSE, test hors 2020-2021 & 0,197 & 0,133 \\
+États-Unis (référence historique) & $\approx 0{,}35 - 0{,}50$ & $\approx 2{,}0\,\% - 2{,}5\,\%$ & Mobilité du travail plus élevée, ajustements d'emplois plus rapides, sensibilité cyclique marquée. \\[0.2cm]
+Zone euro (moyenne hétérogène) & $\approx 0{,}20 - 0{,}40$ & $\approx 1{,}0\,\% - 1{,}8\,\%$ & Protection de l'emploi plus forte, dispositifs de chômage partiel, hétérogénéité entre États membres. \\[0.2cm]
+Économies émergentes / en développement & Souvent plus faible ou irrégulière ($\approx 0{,}10 - 0{,}30$) & Variable ($\approx 3{,}0\,\% - 5{,}0\,\%+$) & Poids de l'informalité, forte croissance démographique, mutations structurelles agricoles/urbaines. \\[0.2cm]
+Périodes de choc sanitaire ou dispositifs d'activité partielle & Faible à court terme & Très variable & Subventions salariales et chômage partiel dissociant temporairement chute du PIB et hausse du chômage. \\
 \bottomrule
 \end{tabular}
-\caption{RMSE sur le jeu de test (points de pourcentage).}
 \end{table}
 
-Le coefficient estimé est $\hat\beta = -0{,}279$ (IC à 95\,\% indicatif : $[-0{,}314\,;\,-0{,}244]$), soit $-0{,}28$ point de chômage par point de croissance trimestrielle. La croissance « neutre » ($\Delta U = 0$) est d'environ $0{,}80\,\%$ par trimestre. Le $R^2$ vaut $0{,}474$ sur le test complet et $-1{,}434$ hors 2020-2021.
+\subsection{Asymétries conjoncturelles : expansions versus récessions}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.8\textwidth]{figA_rmse_test.png}
-\caption{RMSE de la régression et de la référence naïve.}
-\end{figure}
+Un débat important en économétrie porte sur la \textbf{linéarité} et la \textbf{symétrie} de la loi d'Okun. Certaines analyses suggèrent que le taux de chômage réagit plus fortement et plus rapidement lors des phases de récession ou de fort ralentissement que lors des phases d'expansion. Deux mécanismes expliquent cette asymétrie :
+\begin{itemize}[leftmargin=1.5em]
+    \item Les décisions de licenciement collectif ou d'ajustement brutal des effectifs sont souvent déclenchées lorsque la chute de la demande menace la solvabilité ou la rentabilité immédiate des entreprises, alors que l'embauche en phase d'expansion est plus graduelle et prudente.
+    \item Les chocs négatifs de demande ou financiers peuvent provoquer des réallocations sectorielles rapides, augmentant temporairement le chômage frictionnel et structurel.
+\end{itemize}
 
-\section{Limites et conclusion}
-L'intervalle de confiance suppose des erreurs indépendantes et de variance constante, hypothèses douteuses sur des séries temporelles : il est donc probablement trop étroit. Le test complet contient le choc de 2020, qui explique l'essentiel du gain de la régression ; hors 2020-2021, la référence naïve est meilleure.
+D'autres études nuancent cette asymétrie en soulignant qu'une fois contrôlés les effets non linéaires, les retards dynamiques et les changements de régime de croissance potentielle, la relation peut apparaître plus stable qu'il n'y paraît à première vue.
 
-\textbf{Réponse à la problématique} : la croissance du PIB réel explique une part de la variation du chômage ($\hat\beta<0$, $R^2$ test $=0{,}47$), surtout lors des grands chocs, mais la prédiction hors échantillon reste fragile. Pistes : ajouter la croissance retardée, utiliser une régression robuste ou une indicatrice pour 2020-2021, estimer $\beta$ sur fenêtre glissante.
+\section{Limites méthodologiques et critiques de la loi d'Okun}
 
-\section*{Références}
-Okun (1962), \emph{Potential GNP: Its Measurement and Significance} ; Ball, Leigh et Loungani (2017), Okun's Law: Fit at 50?, \emph{Journal of Money, Credit and Banking} ; Pedregosa et al. (2011), Scikit-learn, \emph{JMLR} 12 ; FRED, Federal Reserve Bank of St.~Louis.
+Bien que la loi d'Okun demeure un outil pédagogique et opérationnel incontournable, son utilisation requiert une grande prudence méthodologique :
+
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{Absence de causalité structurelle unique :} la loi d'Okun décrit une corrélation macroéconomique endogène. Le PIB et le chômage sont tous deux déterminés par l'interaction de l'offre globale, de la demande globale, des politiques monétaires et budgétaires, et des chocs exogènes (prix de l'énergie, chocs technologiques, chocs financiers). Un choc d'offre négatif (par exemple une hausse durable du coût de l'énergie ou une rupture d'approvisionnement) peut simultanément ralentir la croissance et modifier la productivité ou le salaire réel d'équilibre sans que la loi d'Okun suffise à en expliquer la transmission complète.
+    \item \textbf{Mesure imparfaite du PIB potentiel et du chômage naturel :} dans la version en écart de production, les variables $Y_t^*$ et $u_t^*$ ne sont pas directement observables. Les estimations en temps réel (\textit{real-time data}) sont fréquemment révisées à mesure que de nouvelles données sont publiées, ce qui peut induire des erreurs de diagnostic conjoncturel si l'on s'appuie mécaniquement sur un filtre statistique.
+    \item \textbf{Mutations structurelles du marché du travail :} la numérisation, l'automatisation, l'essor du travail indépendant ou des plateformes, l'évolution de la participation des femmes et des seniors, ainsi que le vieillissement démographique modifient les paramètres $\alpha$ et $\gamma$ au fil des décennies.
+    \item \textbf{Décalages temporels et chocs atypiques :} lors d'événements exceptionnels (chocs financiers systémiques, crises sanitaires, politiques massives de maintien dans l'emploi), les régularités historiques peuvent être temporairement perturbées.
+\end{enumerate}
+
+\section{Portée pour la politique macroéconomique et conclusion}
+
+En dépit de ses limites, la loi d'Okun occupe une place centrale dans l'arsenal d'analyse des économistes, des banques centrales et des ministères des finances.
+
+\subsection{Usage pratique dans le diagnostic conjoncturel}
+
+Dans l'analyse économique courante, la loi d'Okun permet de :
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Évaluer le coût macroéconomique du chômage :} traduire un niveau de chômage élevé en perte de richesse nationale potentielle et en recettes fiscales non perçues.
+    \item \textbf{Calibrer l'effort de croissance nécessaire :} estimer le rythme de croissance minimal requis pour résorber progressivement un excès de chômage sur un horizon donné.
+    \item \textbf{Articuler la loi d'Okun avec la courbe de Phillips :} en combinant la loi d'Okun (lien entre activité réelle et chômage) et la courbe de Phillips (lien entre chômage/écart d'activité et inflation), les décideurs évaluent les arbitrages entre stabilisation de l'activité et maîtrise de l'inflation.
+\end{itemize}
+
+\subsection{Recommandations de vigilance pour l'analyse appliquée}
+
+Pour exploiter pertinemment la loi d'Okun dans un rapport économique, une étude empirique ou une note de politique publique, il est recommandé de :
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{Comparer plusieurs spécifications :} estimer conjointement la version en différences premières, la version dynamique à retards échelonnés et, lorsque des estimations robustes de $Y_t^*$ et $u_t^*$ sont disponibles, la version en écart.
+    \item \textbf{Tester la stabilité temporelle :} vérifier si le coefficient d'Okun a évolué sur des sous-périodes ou après des réformes du marché du travail.
+    \item \textbf{Compléter par des indicateurs du marché du travail :} croiser le taux de chômage avec l'emploi total, les heures travaillées, le taux d'activité, le sous-emploi et la croissance de la productivité afin d'éviter toute interprétation réductrice.
+\end{enumerate}
+
+En conclusion, la loi d'Okun offre un cadre clair, intuitif et quantitativement utile pour relier la dynamique de la production à celle du chômage. À condition d'être interprétée comme une relation empirique évolutive plutôt que comme une loi mécanique figée, elle demeure l'un des outils fondateurs de la macroéconomie appliquée.
+
+\begin{thebibliography}{9}
+
+\bibitem{okun1962}
+Okun, A. M. (1962). \textit{Potential GNP: Its Measurement and Significance}. Proceedings of the Business and Economic Statistics Section, American Statistical Association, pp. 98--104.
+
+\bibitem{blanchard_macro}
+Blanchard, O. (2020). \textit{Macroeconomics} (8th ed.). Pearson. (Chapitres consacrés au marché du travail, à la loi d'Okun et à la courbe de Phillips).
+
+\bibitem{ball_leigh_loungani}
+Ball, L., Leigh, D., \& Loungani, P. (2017). \textit{Okun's Law: Fit at 50?} Journal of Money, Credit and Banking, 49(7), 1413--1441.
+
+\bibitem{imf_weo}
+International Monetary Fund (IMF). \textit{World Economic Outlook: Unemployment Dynamics and Okun's Law}. Diverses éditions analytiques.
+
+\bibitem{oecd_employment}
+Organisation for Economic Co-operation and Development (OECD). \textit{OECD Employment Outlook}. Analyses sur l'ajustement de l'emploi, les heures travaillées et la résilience du marché du travail.
+
+\end{thebibliography}
 
 \end{document}
